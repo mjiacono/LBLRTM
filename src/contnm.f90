@@ -53,7 +53,7 @@ SUBROUTINE CONTNM(JRAD)
    COMMON /CLOSURE/ FRGNX,mt_version
    common /cntscl/ XSELF,XFRGN,XCO2C,XO3CN,XO2CN,XN2CN,XRAYL
 
-   real sh2o(n_absrb),fh2o(n_absrb)
+   real sh2o(n_absrb),fh2o(n_absrb),dh2o(n_absrb)
    logical radflag
    character FRGNX
    character*45 mt_version
@@ -282,13 +282,14 @@ SUBROUTINE CONTNM(JRAD)
 
       sh2o(:) = 0.0
       fh2o(:) = 0.0
+      dh2o(:) = 0.0
       if (jrad.eq.0) then 
           radflag=.FALSE. 
       else 
           radflag=.TRUE.
       endif
       call mt_ckd_h2o_absco(pave,tave,h2o_fac,v1abs,v2abs,dvabs,&
-                      sh2o,fh2o,FRGNX,radflag=radflag,mt_version=mt_version)
+                      sh2o,fh2o,dh2o,FRGNX,radflag=radflag,mt_version=mt_version)
 
 ! Special code just for stand alone continuum
 
