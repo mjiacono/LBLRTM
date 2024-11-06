@@ -235,12 +235,6 @@ Module mt_ckd_h2o
    call myxint(wvn_dimer(i1_dimer),wvn_dimer(i2_dimer),dvc_dimer,dh2o_coeff,1.0,wv1abs, &
                dvabs,dimer_absco,ist,lst)
 
-   print*, 'size dh2o_coeff = ', size(dh2o_coeff)
-   print*, 'size dimer_absco = ', size(dimer_absco)
-   print*, 'wvn_dimer(1:20) = ', wvn_dimer(1:20)
-   print*, 'dh2o_coeff(1:20) = ', dh2o_coeff(1:20)
-   print*, 'dimer_absco(1:20) = ', dimer_absco(1:20)
-
    end subroutine mt_ckd_h2o_absco
 
 !=======================================================================
