@@ -98,7 +98,7 @@ Module mt_ckd_h2o
 
    real,dimension(:), allocatable :: sh2o_coeff,fh2o_coeff,rad
    real,dimension(:), allocatable :: dh2o_coeff,rad_dimer
-   real :: tref_dimer,qref,qatm,k_b_eq
+   real :: tref_dimer,k_b_eq
    integer :: iret,vlen
    logical,save :: lread=.False.
    character(len=85) :: version
@@ -215,10 +215,9 @@ Module mt_ckd_h2o
 ! Simonova et al. (2024) Eq. B-1 and B-2), apply temperature dependence to reference
 ! water vapor dimer continuum coefficients, and scale to given density.
     tref_dimer = dat%ref_temp_wv_dimer
-    qref = tref_dimer**q_const
-    qatm = t_atm**q_const
     k_b_eq = c1_b * exp(c2_b/t_atm - c3_b*t_atm)
-    dh2o_coeff = k_b_eq * dat%wv_dimer_bound_xs_ref * (qref/qatm) * &
+    dh2o_coeff = k_b_eq * dat%wv_dimer_bound_xs_ref * &
+                 (tref_dimer/t_atm)**q_const * &
                  (exp(-radcn2*Ei/t_atm) / exp(-radcn2*Ei/tref_dimer))
 
     dh2o_coeff = dh2o_coeff * h2o_vmr * rho_rat_dimer
@@ -234,6 +233,12 @@ Module mt_ckd_h2o
    call pre_xint(wvn_dimer(1),wvn_dimer(ncoeffin_dimer),wv1abs,dvabs,nptabs,ist,lst)
    call myxint(wvn_dimer(i1_dimer),wvn_dimer(i2_dimer),dvc_dimer,dh2o_coeff,1.0,wv1abs, &
                dvabs,dimer_absco,ist,lst)
+
+   print*, 'size dh2o_coeff = ', size(dh2o_coeff)
+   print*, 'size dimer_absco = ', size(dimer_absco)
+   print*, 'wvn_dimer(1:20) = ', wvn_dimer(1:20)
+   print*, 'dh2o_coeff(1:20) = ', dh2o_coeff(1:20)
+   print*, 'dimer_absco(1:20) = ', dimer_absco(1:20)
 
    end subroutine mt_ckd_h2o_absco
 
