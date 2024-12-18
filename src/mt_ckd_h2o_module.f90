@@ -45,13 +45,13 @@
 !    radflag - (optional) if true, multiply by radiation term (default); if false, do not 
 !
 !    Description of output variables.
-!    self_absco - computed water vapor self continuum absorption coefficients  (cm2/molec)
-!    for_absco - computed water vapor foreign continuum absorption coefficients (cm2/molec)
-!    dimer_absco - computed water vapor bound dimer continuum absorption coefficients (cm2/molec)
-!    for_closure_absco - same as above, but allows for closure (cm2/molec)
- 
+!    self_absco - computed water vapor self continuum absorption coefficients
+!    for_absco - computed water vapor foreign continuum absorption coefficients
+!    for_closure_absco - same as above, but allows for closure
+!    Units of the output variables are cm2/molec if radflag = 1; otherwise the units are cm2/molec/cm-1
 Module mt_ckd_h2o
    
+     USE lblparams, only: n_absrb
      USE read_file
      USE phys_consts,only: RADCN2
 !                                                                       
@@ -73,10 +73,10 @@ Module mt_ckd_h2o
 
    contains
    subroutine mt_ckd_h2o_absco(p_atm,t_atm,h2o_vmr,wv1abs,wv2abs,dvabs,self_absco,for_absco, &
-      dimer_absco,FRGNX,radflag,mt_version) 
+      FRGNX,radflag,mt_version) 
 
 ! Inputs
-   real,dimension(:),intent(inout)  :: self_absco,for_absco,dimer_absco
+   real,dimension(:),intent(inout)  :: self_absco,for_absco
    real, intent(in) :: p_atm,t_atm,h2o_vmr
    double precision, intent(in):: wv1abs,wv2abs
    real, intent(in):: dvabs
@@ -85,20 +85,21 @@ Module mt_ckd_h2o
    character(len=*),optional :: mt_version 
 
 ! Local variables
+   real :: bdimer_absco(n_absrb)
    integer :: ncoeff,nptabs,i1,i2,ist,lst,i
-   integer :: ncoeff_dimer,i1_dimer,i2_dimer
+   integer :: ncoeff_bdimer,i1_bdimer,i2_bdimer
    real :: xkt,dvc,rho_rat
-   real :: dvc_dimer,rho_rat_dimer
+   real :: dvc_bdimer,rho_rat_bdimer
 
    integer,save :: ncoeffin
    real,dimension(:), allocatable,save :: wvn
    !real,dimension(:,:), allocatable,save :: coeff
-   integer,save :: ncoeffin_dimer
-   real,dimension(:), allocatable,save :: wvn_dimer
+   integer,save :: ncoeffin_bdimer
+   real,dimension(:), allocatable,save :: wvn_bdimer
 
    real,dimension(:), allocatable :: sh2o_coeff,fh2o_coeff,rad
-   real,dimension(:), allocatable :: dh2o_coeff,rad_dimer
-   real :: tref_dimer,k_b_eq
+   real,dimension(:), allocatable :: dh2o_coeff,rad_bdimer
+   real :: tref_bdimer,k_b_eq
    integer :: iret,vlen
    logical,save :: lread=.False.
    character(len=85) :: version
@@ -121,10 +122,10 @@ Module mt_ckd_h2o
       allocate (wvn(ncoeffin))
       wvn = dat%wavenumber(:)
 
-      ncoeffin_dimer = size(dat%wavenumber_wv_dimer)
-      if (allocated(wvn_dimer)) deallocate(wvn_dimer)
-      allocate (wvn_dimer(ncoeffin_dimer))
-      wvn_dimer = dat%wavenumber_wv_dimer(:)
+      ncoeffin_bdimer = size(dat%wavenumber_wv_bdimer)
+      if (allocated(wvn_bdimer)) deallocate(wvn_bdimer)
+      allocate (wvn_bdimer(ncoeffin_bdimer))
+      wvn_bdimer = dat%wavenumber_wv_bdimer(:)
    endif
 
 ! Find coeff wavenumber range that brackets [wv1abs,wv2abs].
@@ -141,31 +142,31 @@ Module mt_ckd_h2o
    i2=i
    ncoeff = i2-i1+1
 
-! Find dimer coeff wavenumber range that brackets [wv1abs,wv2abs].
-   dvc_dimer = dat%wavenumber_wv_dimer(2)-dat%wavenumber_wv_dimer(1)
+! Find bound dimer coeff wavenumber range that brackets [wv1abs,wv2abs].
+   dvc_bdimer = dat%wavenumber_wv_bdimer(2)-dat%wavenumber_wv_bdimer(1)
    i=1
-   do while (wvn_dimer(i) <= (wv1abs-2*dvc_dimer))
+   do while (wvn_bdimer(i) <= (wv1abs-2*dvc_bdimer))
       i = i+1
    enddo
-   i1_dimer=i-1 
-   if(i1_dimer.eq.0) i1_dimer=1
-   do while (wvn_dimer(i) < (wv2abs+2*dvc_dimer))
+   i1_bdimer=i-1 
+   if(i1_bdimer.eq.0) i1_bdimer=1
+   do while (wvn_bdimer(i) < (wv2abs+2*dvc_bdimer))
       i = i+1
    enddo
-   i2_dimer=i
-   ncoeff_dimer = i2_dimer-i1_dimer+1
+   i2_bdimer=i
+   ncoeff_bdimer = i2_bdimer-i1_bdimer+1
 
 ! Set up arrays.
    if (allocated (sh2o_coeff)) deallocate (sh2o_coeff)
    if (allocated (fh2o_coeff)) deallocate (fh2o_coeff)
    if (allocated (dh2o_coeff)) deallocate (dh2o_coeff)
    if (allocated (rad)) deallocate (rad)
-   if (allocated (rad_dimer)) deallocate (rad_dimer)
+   if (allocated (rad_bdimer)) deallocate (rad_bdimer)
    allocate (sh2o_coeff(ncoeff))
    allocate (fh2o_coeff(ncoeff))
-   allocate (dh2o_coeff(ncoeff_dimer))
+   allocate (dh2o_coeff(ncoeff_bdimer))
    allocate (rad(ncoeff))
-   allocate (rad_dimer(ncoeff_dimer))
+   allocate (rad_bdimer(ncoeff_bdimer))
    
 ! Define some atmospheric parameters
    xkt = t_atm/radcn2 
@@ -173,10 +174,13 @@ Module mt_ckd_h2o
 ! be scaled by this factor to accout for the given atmospheric density.
 ! ref_press (1013 mb) and ref_temp (296K) are read in from absco-ref_wv-mt-ckd.nc
    rho_rat = (p_atm/dat%ref_press)*(dat%ref_temp/t_atm)
-   rho_rat_dimer = (p_atm/dat%ref_press)*(dat%ref_temp_wv_dimer/t_atm)
+   rho_rat_bdimer = (p_atm/dat%ref_press)*(dat%ref_temp_wv_bdimer/t_atm)
 
 ! *****************
-! Compute water vapor self continuum absorption coefficient.
+! Compute water vapor self continuum absorption coefficient. This includes:
+!  - contributions from other than bound dimer (sh2o_coeff, stored every 10 cm-1)
+!  - bound dimer (dh2o_coeff, stored every 1 cm-1
+! These two self continuum components have different dependence on temperature.
 
 ! Apply temperature dependence to reference water vapor self continuum coefficients
 ! and scale to given density.
@@ -194,6 +198,35 @@ Module mt_ckd_h2o
    call pre_xint(wvn(1),wvn(ncoeffin),wv1abs,dvabs,nptabs,ist,lst)
    call myxint(wvn(i1),wvn(i2),dvc,sh2o_coeff,1.0,wv1abs,dvabs,self_absco,ist,lst)
 
+
+! Compute water vapor bound dimer continuum absorption coefficient.
+
+! Convert input bound dimer cross-section data to absorption coefficient (following
+! Simonova et al. (2024) Eq. B-1 and B-2), apply temperature dependence to reference
+! water vapor bound dimer continuum coefficients, and scale to given density.
+    tref_bdimer = dat%ref_temp_wv_bdimer
+    k_b_eq = c1_b * exp(c2_b/t_atm - c3_b*t_atm)
+    dh2o_coeff = k_b_eq * dat%wv_bdimer_xs_ref * &
+                 (tref_bdimer/t_atm)**q_const * &
+                 (exp(-radcn2*Ei/t_atm) / exp(-radcn2*Ei/tref_bdimer))
+
+    dh2o_coeff = dh2o_coeff * h2o_vmr * rho_rat_bdimer
+
+! Multiply by radiation term if requested
+    if (radflag) then 
+       iret = myradfn(wvn_bdimer(i1_bdimer:i2_bdimer),xkt,ncoeff_bdimer,rad_bdimer)
+       dh2o_coeff = dh2o_coeff * rad_bdimer
+    endif
+
+! Interpolate coefficients to output spectral grid.
+   nptabs = (wv2abs-wv1abs)/dvabs+1
+   call pre_xint(wvn_bdimer(1),wvn_bdimer(ncoeffin_bdimer),wv1abs,dvabs,nptabs,ist,lst)
+   call myxint(wvn_bdimer(i1_bdimer),wvn_bdimer(i2_bdimer),dvc_bdimer,dh2o_coeff,1.0,wv1abs, &
+               dvabs,bdimer_absco,ist,lst)
+
+! Combine self continuum contributions from both sources.
+   self_absco = self_absco + bdimer_absco
+
 ! *****************
 ! Compute water vapor foreign continuum absorption coefficient.
    fh2o_coeff = dat%for_absco_ref(i1:i2)
@@ -207,38 +240,6 @@ Module mt_ckd_h2o
 ! Interpolate coefficients to output spectral grid.
    call myxint(wvn(i1),wvn(i2),dvc,fh2o_coeff,1.0,wv1abs,dvabs,for_absco,ist,lst)
 ! *****************
-
-! *****************
-! Compute water vapor dimer continuum absorption coefficient.
-
-! Convert input bound dimer cross-section data to absorption coefficient (following
-! Simonova et al. (2024) Eq. B-1 and B-2), apply temperature dependence to reference
-! water vapor dimer continuum coefficients, and scale to given density.
-    tref_dimer = dat%ref_temp_wv_dimer
-    k_b_eq = c1_b * exp(c2_b/t_atm - c3_b*t_atm)
-    dh2o_coeff = k_b_eq * dat%wv_dimer_bound_xs_ref * &
-                 (tref_dimer/t_atm)**q_const * &
-                 (exp(-radcn2*Ei/t_atm) / exp(-radcn2*Ei/tref_dimer))
-
-    dh2o_coeff = dh2o_coeff * h2o_vmr * rho_rat_dimer
-
-! Multiply by radiation term if requested
-    if (radflag) then 
-       iret = myradfn(wvn_dimer(i1_dimer:i2_dimer),xkt,ncoeff_dimer,rad_dimer)
-       dh2o_coeff = dh2o_coeff * rad_dimer
-    endif
-
-! Interpolate coefficients to output spectral grid.
-   nptabs = (wv2abs-wv1abs)/dvabs+1
-   call pre_xint(wvn_dimer(1),wvn_dimer(ncoeffin_dimer),wv1abs,dvabs,nptabs,ist,lst)
-   call myxint(wvn_dimer(i1_dimer),wvn_dimer(i2_dimer),dvc_dimer,dh2o_coeff,1.0,wv1abs, &
-               dvabs,dimer_absco,ist,lst)
-
-   print*, 'size dh2o_coeff = ', size(dh2o_coeff)
-   print*, 'size dimer_absco = ', size(dimer_absco)
-   print*, 'wvn_dimer(1:20) = ', wvn_dimer(1:20)
-   print*, 'dh2o_coeff(1:20) = ', dh2o_coeff(1:20)
-   print*, 'dimer_absco(1:20) = ', dimer_absco(1:20)
 
    end subroutine mt_ckd_h2o_absco
 
