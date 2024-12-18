@@ -36,9 +36,9 @@ MODULE read_file
      real(kind=8), allocatable, dimension(:) :: self_texp
      real(kind=8) :: ref_temp
      real(kind=8) :: ref_press
-     real(kind=8), allocatable, dimension(:) :: wavenumber_wv_dimer
-     real(kind=8), allocatable, dimension(:) :: wv_dimer_bound_xs_ref
-     real(kind=8) :: ref_temp_wv_dimer
+     real(kind=8), allocatable, dimension(:) :: wavenumber_wv_bdimer
+     real(kind=8), allocatable, dimension(:) :: wv_bdimer_xs_ref
+     real(kind=8) :: ref_temp_wv_bdimer
   end type data2read
 
   logical, parameter                      :: dbg = .FALSE.
@@ -60,7 +60,7 @@ MODULE read_file
 
     integer(kind=4)   :: ncid
     integer(kind=4)   :: nWavenumbers
-    integer(kind=4)   :: nWavenumbers_dimer
+    integer(kind=4)   :: nWavenumbers_bdimer
     integer(kind=4)   :: stat
 
     ! check on the file
@@ -79,7 +79,7 @@ MODULE read_file
       isError = .false.
       return
     end if
-    if (.not. inqDim(ncid, "nwvn_dimer",  dimLen=nWavenumbers_dimer)) then
+    if (.not. inqDim(ncid, "nwvn_bdimer",  dimLen=nWavenumbers_bdimer)) then
       call check( nf_close(ncid) )
       isError = .false.
       return
@@ -89,15 +89,15 @@ MODULE read_file
     if (allocated(dat%for_absco_ref))    deallocate(dat%for_absco_ref)
     if (allocated(dat%self_absco_ref))   deallocate(dat%self_absco_ref)
     if (allocated(dat%self_texp))   deallocate(dat%self_texp)
-    if (allocated(dat%wavenumber_wv_dimer))   deallocate(dat%wavenumber_wv_dimer)
-    if (allocated(dat%wv_dimer_bound_xs_ref))    deallocate(dat%wv_dimer_bound_xs_ref)
+    if (allocated(dat%wavenumber_wv_bdimer))   deallocate(dat%wavenumber_wv_bdimer)
+    if (allocated(dat%wv_bdimer_xs_ref))    deallocate(dat%wv_bdimer_xs_ref)
 
     allocate(dat%wavenumber(nWavenumbers), &
              dat%for_absco_ref(nWavenumbers), &
              dat%self_absco_ref(nWavenumbers),   &
              dat%self_texp(nWavenumbers), &
-             dat%wavenumber_wv_dimer(nWavenumbers_dimer),   &
-             dat%wv_dimer_bound_xs_ref(nWavenumbers_dimer), STAT= stat)
+             dat%wavenumber_wv_bdimer(nWavenumbers_bdimer),   &
+             dat%wv_bdimer_xs_ref(nWavenumbers_bdimer), STAT= stat)
     isError = stat /= 0
     if (isError) then
        print '("ERROR::read_file:: memory allocation ")'
@@ -115,9 +115,9 @@ MODULE read_file
     call readVarNC(ncid,"self_texp",   dat%self_texp)
     call readVarNC(ncid,"ref_temp",   dat%ref_temp)
     call readVarNC(ncid,"ref_press",   dat%ref_press)
-    call readVarNC(ncid,"wavenumbers_dimer",   dat%wavenumber_wv_dimer)
-    call readVarNC(ncid,"wv_dimer_bound_xs_ref",   dat%wv_dimer_bound_xs_ref)
-    call readVarNC(ncid,"ref_temp_wv_dimer",   dat%ref_temp_wv_dimer)
+    call readVarNC(ncid,"wavenumbers_bdimer",   dat%wavenumber_wv_bdimer)
+    call readVarNC(ncid,"wv_bdimer_xs_ref",   dat%wv_bdimer_xs_ref)
+    call readVarNC(ncid,"ref_temp_wv_bdimer",   dat%ref_temp_wv_bdimer)
     call readVarNC(ncid,"title",   version)
     call check( nf_close(ncid) )
 
